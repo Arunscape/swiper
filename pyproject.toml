@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "swiper"
+version = "0.1.0"
+description = ""
+authors = ["Arunscape <8227297+Arunscape@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+opencv-python = "^4.7.0.68"
+pure-python-adb = "^0.3.0.dev0"
+aiofiles = "^22.1.0"
+asyncio = "^3.4.3"
+inquirer = "^3.1.2"
+uiautomator2 = "^2.16.22"
+weditor = "^0.6.7"
+pyyaml = "^6.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
