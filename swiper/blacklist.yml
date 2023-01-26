@@ -1,52 +1,43 @@
 lifestyles:
-  # resourceid: com.tinder:id/chip_group_descriptors
-  classname: android.view.ViewGroup
-  list:
-    - I don't want children
-    - I have children and want more
-    - I have children and don't want more
-    - Unvaccinated
-    - Dog
-    - Cat
-    - Want a pet
-    - Social smoker
-    - Smoker
-    - Smoker when drinking
+  - I don't want children
+  - I have children and want more
+  - I have children and don't want more
+  - Unvaccinated
+  - Dog
+  - Cat
+  - Want a pet
+  - Social smoker
+  - Smoker
+  - Smoker when drinking
+  - Trying to quit
+  - High School
 
 interests:
-  # resourceid: com.tinder:id/chip_group_alibis
-  classname: android.view.ViewGroup
-  list:
-    - Astrology
-    - Tarot
-    - Couchsurfing
-    - Country Music
-    - Walking My Dog
-    - Cat lover
-    - Dog lover
+  - Astrology
+  - Tarot
+  - Couchsurfing
+  - Country Music
+  - Walking My Dog
+  - Cat lover
+  - Dog lover
+  - Bar Hopping
+  - Tiktok
 
 intent:
-  resourceid: com.tinder:id/relationship_intent_bottom_prompt
-  classname: android.widget.TextView
-  list:
-    - Short-term fun
+  - Short-term fun
+
 bio:
-  resourceid: com.tinder:id/text_view_bio
-  classname: android.widget.TextView
-  list:
-    - dog mom
-    - cat mom
-    - aspiring milf
-    - add me on snap
-    - proud mama
-    - add on snap
-    - 420 friendly
-    - snack that smiles back
-    - are my world
-    - snacc
+  - dog mom
+  - cat mom
+  - aspiring milf
+  - add me on snap
+  - proud mama
+  - add on snap
+  - 420 friendly
+  - snack that smiles back
+  - are my world
+  - snacc
 
 
-jobs:
-  resourceid: com.tinder:id/profile_info_job
-  classname: android.widget.TextView
-  list: ~
+jobs: ~
+  

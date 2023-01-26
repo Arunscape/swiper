@@ -41,6 +41,26 @@ class User:
         x = self.data["user"].get("relationship_intent", {}).get("body_text", "")
         return x
 
+    def music_artists(self) -> list[str]:
+        top_artists = self.data["spotify"]["spotify_top_artists"]
+        top_artists = [i["name"] for i in top_artists]
+
+        anthem = self.data["spotify"].get("spotify_theme_track", {}).get("artists", [])
+        anthem = [i["name"] for i in anthem]
+        artists = top_artists + anthem
+
+        return artists
+
+    def id(self) -> str:
+        return self.data["user"]["_id"]
+
+    def s_number(self):
+        return self.data["s_number"]
+
+    def photos(self):
+        photos = self.data["user"]["photos"]
+        return [p["url"] for p in photos]
+
     def __repr__(self) -> str:
         x = {
             "name": self.name(),
@@ -49,10 +69,11 @@ class User:
             "job_titles": self.job_titles(),
             "lifestyles": self.lifestyles(),
             "intent": self.intent(),
+            "music_artists": self.music_artists(),
         }
         return json.dumps(x, indent=2, ensure_ascii=False)
     
-    def check_job(self, blacklist: list[str]):
+    def check_job(self, blacklist: list[str]) -> bool:
         blacklist = {b.lower() for b in blacklist}
         jobs = self.job_titles()
         jobs = (j.lower() for j in jobs)
@@ -63,7 +84,7 @@ class User:
         return False
                 
 
-    def check_bio(self, blacklist: list[str]):
+    def check_bio(self, blacklist: list[str]) -> bool:
         blacklist = {b.lower() for b in blacklist}
         bio = self.bio().lower()
         for b in blacklist:
@@ -71,7 +92,7 @@ class User:
                 return True
         return False
 
-    def check_interests(self, blacklist: list[str]):
+    def check_interests(self, blacklist: list[str]) -> bool:
         blacklist = {b.lower() for b in blacklist}
         interests = self.interests()
         interests = (i.lower() for i in interests)
@@ -80,18 +101,27 @@ class User:
                 return True
         return False
 
-    def check_intent(self, blacklist: list[str]):
+    def check_intent(self, blacklist: list[str]) -> bool:
         blacklist = {b.lower() for b in blacklist}
         if self.intent().lower() in blacklist:
             return True
         return False
 
-    def check_lifestyle(self, blacklist: list[str]):
+    def check_lifestyle(self, blacklist: list[str]) -> bool:
         blacklist = {b.lower() for b in blacklist}
         lifestyles = self.lifestyles()
         lifestyles = (l.lower() for l in lifestyles)
         for l in lifestyles:
             if l in blacklist:
+                return True
+        return False
+
+    def check_music(self, whitelist: list[str]) -> bool:
+        whitelist = { w.lower() for w in whitelist }
+        artists = self.music_artists()
+        artists = (a.lower() for a in artists)
+        for artist in artists:
+            if artist in whitelist:
                 return True
         return False
 
@@ -113,6 +143,38 @@ class ApiClient:
     def recs_to_users(self, recs: dict) -> list[User]:
         return [User(r) for r in recs["data"]["results"]]
 
+    def like(self, id: str, s_number: str):
+        
+        res = requests.get(self.baseurl+ f"/like/{id}", headers=self.headers, params={id, s_number})
+        return res.json()
+
+    def dislike(self, id: str, s_number: str):
+        # curl 'https://api.gotinder.com/pass/63c7bacf0996fb0100ae9377?locale=en&s_number=4216353744812922' \
+        #   -H 'authority: api.gotinder.com' \
+        #   -H 'accept: application/json' \
+        #   -H 'accept-language: en,en-US' \
+        #   -H 'app-session-id: <>' \
+        #   -H 'app-session-time-elapsed: 9986' \
+        #   -H 'app-version: 1040101' \
+        #   -H 'origin: https://tinder.com' \
+        #   -H 'persistent-device-id: <>' \
+        #   -H 'platform: web' \
+        #   -H 'referer: https://tinder.com/' \
+        #   -H 'sec-ch-ua: "Google Chrome";v="111", "Not(A:Brand";v="8", "Chromium";v="111"' \
+        #   -H 'sec-ch-ua-mobile: ?0' \
+        #   -H 'sec-ch-ua-platform: "Linux"' \
+        #   -H 'sec-fetch-dest: empty' \
+        #   -H 'sec-fetch-mode: cors' \
+        #   -H 'sec-fetch-site: cross-site' \
+        #   -H 'tinder-version: 4.1.1' \
+        #   -H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36' \
+        #   -H 'user-session-id: >?' \
+        #   -H 'user-session-time-elapsed: 9753' \
+        #   -H 'x-auth-token: <todo>' \
+        #   -H 'x-supported-image-formats: webp,jpeg' \
+        #   --compressed
+        res = requests.get(self.baseurl+ f"/pass/{id}", headers=self.headers, params={id, s_number})
+        return res.json()
 
 class Swiper:
     def __init__(self, device: str):
