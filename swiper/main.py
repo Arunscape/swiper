@@ -38,7 +38,12 @@ class User:
 
     def job_titles(self) -> str:
         x = self.data["user"]["jobs"]
-        return [i["title"]["name"] for i in x]
+        res = []
+        for i in x:
+            if "title" in i:
+                if "name" in i:
+                    res.append(i["title"]["name"])
+        return res
 
     def intent(self) -> list[str]:
         x = self.data["user"].get("relationship_intent", {}).get("body_text", "")
@@ -117,7 +122,8 @@ class User:
 
 class Stats:
     def __init__(self):
-        self.con = sqlite3.connect("stats.db")
+        cwd = cwd = os.path.dirname(__file__) 
+        self.con = sqlite3.connect(os.path.join(cwd, "stats.db"))
         self.cur = self.con.cursor()
 
         self.cur.execute("CREATE TABLE IF NOT EXISTS stats (id TEXT PRIMARY KEY, name TEXT, bio TEXT, intent TEXT, action TEXT, reason TEXT)")
@@ -128,17 +134,17 @@ class Stats:
         self.cur.execute("CREATE TABLE IF NOT EXISTS photos (id TEXT, photo TEXT)")
 
     def add(self, user: User, action: str, reason: str):
-        self.cur.execute("INSERT INTO stats VALUES (?, ?, ?, ?, ?, ?)", (user.id(), user.name(), user.bio(), user.intent(), action, reason))
+        self.cur.execute("INSERT OR IGNORE INTO stats VALUES (?, ?, ?, ?, ?, ?)", (user.id(), user.name(), user.bio(), user.intent(), action, reason))
         for i in user.interests():
-            self.cur.execute("INSERT INTO interests VALUES (?, ?)", (user.id(), i))
+            self.cur.execute("INSERT OR IGNORE INTO interests VALUES (?, ?)", (user.id(), i))
         for l in user.lifestyles():
-            self.cur.execute("INSERT INTO lifestyles VALUES (?, ?)", (user.id(), l))
+            self.cur.execute("INSERT OR IGNORE INTO lifestyles VALUES (?, ?)", (user.id(), l))
         for j in user.job_titles():
-            self.cur.execute("INSERT INTO jobs VALUES (?, ?)", (user.id(), j))
+            self.cur.execute("INSERT OR IGNORE INTO jobs VALUES (?, ?)", (user.id(), j))
         for m in user.music_artists():
-            self.cur.execute("INSERT INTO music_artists VALUES (?, ?)", (user.id(), m))
+            self.cur.execute("INSERT OR IGNORE INTO music_artists VALUES (?, ?)", (user.id(), m))
         for p in user.photos():
-            self.cur.execute("INSERT INTO photos VALUES (?, ?)", (user.id(), p))
+            self.cur.execute("INSERT OR IGNORE INTO photos VALUES (?, ?)", (user.id(), p))
 
         self.con.commit()
 
@@ -154,8 +160,8 @@ class ApiClient:
             "Content-Type": "application/json",
             "X-Auth-Token": token,
         }
-        # self.baseurl = "https://api.gotinder.com"
-        self.baseurl = "http://localhost:5000"
+        self.baseurl = "https://api.gotinder.com"
+        # self.baseurl = "http://localhost:5000"
 
     def get_recs(self) -> dict:
         res = requests.get(self.baseurl+"/v2/recs/core?locale=en", headers=self.headers)
@@ -173,7 +179,8 @@ class ApiClient:
         res = requests.get(self.baseurl+ f"/like/{id}", headers=self.headers, params={"_id": id, "s_number": s_number})
 
         if res.status_code == 200:
-            logging.info(f"liked {id} with s_number {s_number}")
+            # logging.info(f"liked {id} with s_number {s_number}")
+            pass
         else:
             logging.warning(f"failed to like {id} with s_number {s_number}: {res.text}")
         return res.text
@@ -183,7 +190,8 @@ class ApiClient:
         res = requests.get(self.baseurl+ f"/pass/{id}", headers=self.headers, params={"_id": id, "s_number": s_number})
         
         if res.status_code == 200:
-            logging.info(f"liked {id} with s_number {s_number}")
+            # logging.info(f"liked {id} with s_number {s_number}")
+            pass
         else:
             logging.warning(f"failed to like {id} with s_number {s_number}: {res.text}")
         return res.text
@@ -230,7 +238,10 @@ class Swiper:
                     self.stats.add(user, "dislike", reason)
                     logging.info(f"rejected {user.id()} {user.name()} because: {reason}")
                     continue
-            break
+
+                logging.info(f"skipped {user.id()} {user.name()}")
+                self.stats.add(user, "skipped", "")
+            
 
             
 
