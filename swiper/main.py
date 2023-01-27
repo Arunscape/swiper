@@ -1,9 +1,12 @@
-# from ppadb.client_async import ClientAsync as AdbClient
 import yaml
-import time
-import sys
 import requests
 import json
+import sqlite3
+import logging
+import os
+import time
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 class User:
@@ -54,10 +57,10 @@ class User:
     def id(self) -> str:
         return self.data["user"]["_id"]
 
-    def s_number(self):
+    def s_number(self) -> str:
         return self.data["s_number"]
 
-    def photos(self):
+    def photos(self) -> list[str]:
         photos = self.data["user"]["photos"]
         return [p["url"] for p in photos]
 
@@ -73,57 +76,75 @@ class User:
         }
         return json.dumps(x, indent=2, ensure_ascii=False)
     
-    def check_job(self, blacklist: list[str]) -> bool:
-        blacklist = {b.lower() for b in blacklist}
+    def check_job(self, blacklist: list[str]) -> str | None:
         jobs = self.job_titles()
         jobs = (j.lower() for j in jobs)
         for j in jobs:
             for b in blacklist:
                 if b in j:
-                    return True
-        return False
+                    return b
+        return None
                 
 
-    def check_bio(self, blacklist: list[str]) -> bool:
-        blacklist = {b.lower() for b in blacklist}
+    def check_bio(self, blacklist: list[str]) -> set[str]:
         bio = self.bio().lower()
-        for b in blacklist:
-            if b in bio:
-                return True
-        return False
 
-    def check_interests(self, blacklist: list[str]) -> bool:
-        blacklist = {b.lower() for b in blacklist}
+        return {b for b in blacklist if b in bio }
+
+    def check_interests(self, blacklist: list[str]) -> set[str]:
         interests = self.interests()
         interests = (i.lower() for i in interests)
-        for i in interests:
-            if i in blacklist:
-                return True
-        return False
 
-    def check_intent(self, blacklist: list[str]) -> bool:
-        blacklist = {b.lower() for b in blacklist}
-        if self.intent().lower() in blacklist:
-            return True
-        return False
+        return {i for i in interests if i in blacklist}
 
-    def check_lifestyle(self, blacklist: list[str]) -> bool:
-        blacklist = {b.lower() for b in blacklist}
+    def check_intent(self, blacklist: list[str]) -> str | None:
+        intent = self.intent().lower()
+        return intent if intent in blacklist else None
+
+
+    def check_lifestyle(self, blacklist: list[str]) -> set[str]:
         lifestyles = self.lifestyles()
         lifestyles = (l.lower() for l in lifestyles)
-        for l in lifestyles:
-            if l in blacklist:
-                return True
-        return False
 
-    def check_music(self, whitelist: list[str]) -> bool:
-        whitelist = { w.lower() for w in whitelist }
+        return {l for l in lifestyles if l in blacklist}
+
+    def check_music(self, whitelist: list[str]) -> set[str]:
         artists = self.music_artists()
         artists = (a.lower() for a in artists)
-        for artist in artists:
-            if artist in whitelist:
-                return True
-        return False
+
+        return {a for a in artists if a in whitelist}
+
+
+class Stats:
+    def __init__(self):
+        self.con = sqlite3.connect("stats.db")
+        self.cur = self.con.cursor()
+
+        self.cur.execute("CREATE TABLE IF NOT EXISTS stats (id TEXT PRIMARY KEY, name TEXT, bio TEXT, intent TEXT, action TEXT, reason TEXT)")
+        self.cur.execute("CREATE TABLE IF NOT EXISTS interests (id TEXT, interest TEXT)")
+        self.cur.execute("CREATE TABLE IF NOT EXISTS lifestyles (id TEXT, lifestyle TEXT)")
+        self.cur.execute("CREATE TABLE IF NOT EXISTS jobs (id TEXT, job TEXT)")
+        self.cur.execute("CREATE TABLE IF NOT EXISTS music_artists (id TEXT, music_artist TEXT)")
+        self.cur.execute("CREATE TABLE IF NOT EXISTS photos (id TEXT, photo TEXT)")
+
+    def add(self, user: User, action: str, reason: str):
+        self.cur.execute("INSERT INTO stats VALUES (?, ?, ?, ?, ?, ?)", (user.id(), user.name(), user.bio(), user.intent(), action, reason))
+        for i in user.interests():
+            self.cur.execute("INSERT INTO interests VALUES (?, ?)", (user.id(), i))
+        for l in user.lifestyles():
+            self.cur.execute("INSERT INTO lifestyles VALUES (?, ?)", (user.id(), l))
+        for j in user.job_titles():
+            self.cur.execute("INSERT INTO jobs VALUES (?, ?)", (user.id(), j))
+        for m in user.music_artists():
+            self.cur.execute("INSERT INTO music_artists VALUES (?, ?)", (user.id(), m))
+        for p in user.photos():
+            self.cur.execute("INSERT INTO photos VALUES (?, ?)", (user.id(), p))
+
+        self.con.commit()
+
+
+
+
 
 class ApiClient:
     def __init__(self, token: str):
@@ -133,162 +154,126 @@ class ApiClient:
             "Content-Type": "application/json",
             "X-Auth-Token": token,
         }
-        self.baseurl = "https://api.gotinder.com"
+        # self.baseurl = "https://api.gotinder.com"
+        self.baseurl = "http://localhost:5000"
 
     def get_recs(self) -> dict:
-        # res = requests.get(self.baseurl+"/v2/recs/core?locale=en", headers=self.headers)
-        # return res.json()
-        raise Exception("Unimplemented")
+        res = requests.get(self.baseurl+"/v2/recs/core?locale=en", headers=self.headers)
+        return res.json()
 
     def recs_to_users(self, recs: dict) -> list[User]:
         return [User(r) for r in recs["data"]["results"]]
 
+    def get_users(self) -> list[User]:
+        recs = self.get_recs()
+        return self.recs_to_users(recs)
+
     def like(self, id: str, s_number: str):
         
-        res = requests.get(self.baseurl+ f"/like/{id}", headers=self.headers, params={id, s_number})
-        return res.json()
+        res = requests.get(self.baseurl+ f"/like/{id}", headers=self.headers, params={"_id": id, "s_number": s_number})
+
+        if res.status_code == 200:
+            logging.info(f"liked {id} with s_number {s_number}")
+        else:
+            logging.warning(f"failed to like {id} with s_number {s_number}: {res.text}")
+        return res.text
 
     def dislike(self, id: str, s_number: str):
-        # curl 'https://api.gotinder.com/pass/63c7bacf0996fb0100ae9377?locale=en&s_number=4216353744812922' \
-        #   -H 'authority: api.gotinder.com' \
-        #   -H 'accept: application/json' \
-        #   -H 'accept-language: en,en-US' \
-        #   -H 'app-session-id: <>' \
-        #   -H 'app-session-time-elapsed: 9986' \
-        #   -H 'app-version: 1040101' \
-        #   -H 'origin: https://tinder.com' \
-        #   -H 'persistent-device-id: <>' \
-        #   -H 'platform: web' \
-        #   -H 'referer: https://tinder.com/' \
-        #   -H 'sec-ch-ua: "Google Chrome";v="111", "Not(A:Brand";v="8", "Chromium";v="111"' \
-        #   -H 'sec-ch-ua-mobile: ?0' \
-        #   -H 'sec-ch-ua-platform: "Linux"' \
-        #   -H 'sec-fetch-dest: empty' \
-        #   -H 'sec-fetch-mode: cors' \
-        #   -H 'sec-fetch-site: cross-site' \
-        #   -H 'tinder-version: 4.1.1' \
-        #   -H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36' \
-        #   -H 'user-session-id: >?' \
-        #   -H 'user-session-time-elapsed: 9753' \
-        #   -H 'x-auth-token: <todo>' \
-        #   -H 'x-supported-image-formats: webp,jpeg' \
-        #   --compressed
-        res = requests.get(self.baseurl+ f"/pass/{id}", headers=self.headers, params={id, s_number})
-        return res.json()
+
+        res = requests.get(self.baseurl+ f"/pass/{id}", headers=self.headers, params={"_id": id, "s_number": s_number})
+        
+        if res.status_code == 200:
+            logging.info(f"liked {id} with s_number {s_number}")
+        else:
+            logging.warning(f"failed to like {id} with s_number {s_number}: {res.text}")
+        return res.text
 
 class Swiper:
-    def __init__(self, device: str):
-        self.client = ApiClient("token")    
-        print(f"Connected to {device}")
-        # self.d.app_start("com.tinder"
+    def __init__(self, token: str):
+        self.client = ApiClient(token)
+        self.stats = Stats()
         self.load_config()
-        self.d.open_url("tinder://")
-
-        while True:
-            try:
-                self.swipe()
-            except Exception as e:
-                print(e, file=sys.stderr)
-
+        
     def load_config(self):
-        with open("blacklist.yml") as f:
+        cwd = os.path.dirname(__file__) 
+        with open(os.path.join(cwd, "blacklist.yml")) as f:
             self.blacklist = yaml.safe_load(f)
+        logging.info(f"loaded blacklist: {self.blacklist}")
+
+        with open(os.path.join(cwd, "whitelist.yml")) as f:
+            self.whitelist = yaml.safe_load(f)
+        logging.info(f"loaded whitelist: {self.whitelist}")
+
+        # lowercase the items
+        for k, v in self.blacklist.items(): 
+            self.blacklist[k] = [i.lower() for i in v]
+        for k, v in self.whitelist.items():
+            self.whitelist[k] = [i.lower() for i in v]
 
     def swipe(self):
         while True:
-            self.click_more_info()
+            time.sleep(5)
+            users = self.client.get_users()
 
-            if self.check_bio():
-                continue
+            for user in users:
+                time.sleep(5)
+                reason = self.check_whitelist(user)
+                if reason:
+                    self.client.like(user.id(), user.s_number())
+                    self.stats.add(user, "like", reason)
+                    logging.info(f"liked {user.id()} {user.name()} because: {reason}")
+                    continue
 
-            if self.check_job():
-                continue
+                reason = self.check_blacklist(user)
+                if reason:
+                    self.client.dislike(user.id(), user.s_number())
+                    self.stats.add(user, "dislike", reason)
+                    logging.info(f"rejected {user.id()} {user.name()} because: {reason}")
+                    continue
+            break
 
-            if self.check_lifestyle():
-                continue
+            
 
-            if self.check_interests():
-                continue
+    def check_whitelist(self, user: User) -> str | None:
+        result = ""
 
-            if self.check_intent():
-                continue
+        matching_interests = user.check_interests(self.whitelist["interests"])
+        if matching_interests:
+            result +=  f"{matching_interests} in interests "
+            
 
-            print(".", end="", flush=True)
-            time.sleep(0.5)
+        matching_music = user.check_music(self.whitelist["music_artists"])
+        if user.check_music(self.whitelist["music_artists"]):
+            result += f"{matching_music} in music "
 
-    def reject(self, reason: str):
-        print(f"\nRejected because {reason}")
-        self.d(
-            className="android.widget.FrameLayout",
-            resourceId="com.tinder:id/gamepad_pass",
-        ).click()
+        return result if result else None
 
-    def accept(self):
-        self.d(
-            className="android.widget.FrameLayout",
-            resourceId="com.tinder:id/gamepad_like",
-        ).click()
+    def check_blacklist(self, user: User) -> str | None:
+    
+            result = ""
+    
+            lifestyles = user.check_lifestyle(self.blacklist["lifestyles"])
+            if lifestyles:
+                result += f"{lifestyles} in lifestyle "
 
-    def click_more_info(self):
-        if self.d(
-            className="android.widget.ImageView",
-            resourceId="com.tinder:id/recsDetailInfo",
-        ).exists:
-            self.d(
-                className="android.widget.ImageView",
-                resourceId="com.tinder:id/recsDetailInfo",
-            ).click()
+            interests = user.check_interests(self.blacklist["interests"])
+            if interests:
+                result += f"{interests} in interests "
 
-    def check_lifestyle(self):
-        lifestyle = self.d(
-            className="android.view.ViewGroup",
-            resourceId="com.tinder:id/chip_group_descriptors",
-        )
-        for l in self.blacklist["lifestyles"]["list"]:
-            if lifestyle.child(text=l, className="android.view.View").exists:
-                self.reject(f"{l} in lifestyle")
-                return True
-        return False
+            intent = user.check_intent(self.blacklist["intent"])
+            if intent:
+                result += f"{intent} in intent "
 
-    def check_interests(self):
-        interests = self.d(
-            className="android.view.ViewGroup",
-            resourceId="com.tinder:id/chip_group_alibis",
-        )
-        for l in self.blacklist["interests"]["list"]:
-            if interests.child(text=l, className="android.view.View").exists:
-                self.reject(f"{l} in interests")
-                return True
-        return False
+            job = user.check_job(self.blacklist["jobs"])  
+            if job:
+                result += f"{job} in job "
 
-    def check_intent(self):
-        for l in self.blacklist["intent"]["list"]:
-            if self.d(
-                text=l,
-                className="android.widget.TextView",
-                resourceId="com.tinder:id/relationship_intent_bottom_prompt",
-            ).exists:
-                self.reject(f"{l} in intent")
-                return True
-        return False
-
-    def check_bio(self):
-        if not self.d(
-            className="android.widget.TextView",
-            resourceId="com.tinder:id/text_view_bio",
-        ).exists:
-            return False
-        bio = self.d(
-            className="android.widget.TextView",
-            resourceId="com.tinder:id/text_view_bio",
-        ).info["text"]
-        bio = bio.lower()
-        for l in self.blacklist["bio"]["list"]:
-            if l in bio:
-                self.reject(f"{l} in bio: {bio}")
-                return True
-
-        return False
+            bio = user.check_bio(self.blacklist["bio"])
+            if bio:
+                result += f"{bio} in bio "
+    
+            return result if result else None
+    
 
    
 
@@ -301,12 +286,14 @@ if __name__ == "__main__":
     token = os.environ.get("TOKEN")
     if not token:
         raise Exception("no token")
-    a = ApiClient(token)
+    # a = ApiClient(token)
 
-    x = a.get_recs()
-    x = json.dumps(x, indent=4)
+    # x = a.get_recs()
+    # x = json.dumps(x, indent=4)
 
-    with open("testdata.json", "w") as f:
-        f.write(x)
+    # with open("testdata.json", "w") as f:
+    #     f.write(x)
 
-    print(x)
+    # print(x)
+    s = Swiper(token)
+    s.swipe()

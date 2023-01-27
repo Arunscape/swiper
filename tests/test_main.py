@@ -1,7 +1,10 @@
 import pytest
-from swiper.main import ApiClient
+from swiper.main import ApiClient, Swiper
 import json
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 @pytest.fixture(autouse=True)
 def mocked_recs(mocker):
@@ -29,11 +32,19 @@ def test_filters():
         # print(u.job_titles(), u.check_job(["dog"]))
         # print(u.lifestyles(), u.check_lifestyle(["dog"]))
         # print(u.music_artists(), u.check_music(["the weeknd", "eminem"]))
-        # print(u.id(), u.s_number())
-        print(u.photos())
+        print(u.id(), u.s_number())
+        # print(u.photos())
 
-def test_like():
+def test_like(caplog):
+    caplog.set_level(logging.INFO)
     a = ApiClient("")
     x = a.get_recs()
     b = a.recs_to_users(x)
+    b = b[0]
     a.like(b.id(), b.s_number())
+    a.dislike(b.id(), b.s_number())
+    
+
+def test_swipe():
+    s = Swiper("token")
+    s.swipe()
