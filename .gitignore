@@ -1,3 +1,10 @@
+# don't leak any personal info about the matches
+*.db
+swiper/tests/testdata/*
+.vscode
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
