@@ -165,6 +165,8 @@ class ApiClient:
 
     def get_recs(self) -> dict:
         res = requests.get(self.baseurl+"/v2/recs/core?locale=en", headers=self.headers)
+        logging.info(f"got recs {res.status_code}")
+        logging.info(res.text)
         return res.json()
 
     def recs_to_users(self, recs: dict) -> list[User]:
@@ -176,18 +178,18 @@ class ApiClient:
 
     def like(self, id: str, s_number: str):
         
-        res = requests.get(self.baseurl+ f"/like/{id}", headers=self.headers, params={"_id": id, "s_number": s_number})
+        res = requests.get(self.baseurl+ f"/like/{id}", headers=self.headers, params={"locale": "en"})
 
         if res.status_code == 200:
-            # logging.info(f"liked {id} with s_number {s_number}")
+            # logging.info(f"liked {id}")
             pass
         else:
-            logging.warning(f"failed to like {id} with s_number {s_number}: {res.text}")
+            logging.warning(f"failed to like {id}")
         return res.text
 
     def dislike(self, id: str, s_number: str):
 
-        res = requests.get(self.baseurl+ f"/pass/{id}", headers=self.headers, params={"_id": id, "s_number": s_number})
+        res = requests.get(self.baseurl+ f"/pass/{id}", headers=self.headers, params={"locale": "en", "s_number": s_number})
         
         if res.status_code == 200:
             # logging.info(f"liked {id} with s_number {s_number}")
