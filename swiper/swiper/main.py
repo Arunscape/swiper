@@ -28,7 +28,9 @@ class User:
         ret = {}
 
         for lifestyle in x:
-            name = lifestyle["name"]
+            name = lifestyle.get("name", None)
+            if name is None:
+                continue
             choices = lifestyle["choice_selections"]
             choices = [c["name"] for c in choices]
 
@@ -170,7 +172,7 @@ class ApiClient:
         return res.json()
 
     def recs_to_users(self, recs: dict) -> list[User]:
-        return [User(r) for r in recs["data"]["results"]]
+        return [User(r) for r in recs.get("data", {}).get("results", [])]
 
     def get_users(self) -> list[User]:
         recs = self.get_recs()
@@ -213,6 +215,10 @@ class Swiper:
         with open(os.path.join(cwd, "whitelist.yml")) as f:
             self.whitelist = yaml.safe_load(f)
         logging.info(f"loaded whitelist: {self.whitelist}")
+        
+        if self.blacklist is None or self.whitelist is None:
+            logging.error("failed to load config")
+            exit(1)
 
         # lowercase the items
         for k, v in self.blacklist.items(): 

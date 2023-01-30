@@ -1,0 +1,567 @@
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "target": {
+            "limit": 100,
+            "matchAny": false,
+            "tags": [],
+            "type": "dashboard"
+          },
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 1,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "dH2THW04z"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineWidth": 1,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 72,
+          "w": 11,
+          "x": 0,
+          "y": 0
+        },
+        "id": 10,
+        "options": {
+          "barRadius": 0,
+          "barWidth": 0.97,
+          "groupWidth": 0.7,
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "orientation": "horizontal",
+          "showValue": "auto",
+          "stacking": "none",
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          },
+          "xTickLabelRotation": -45,
+          "xTickLabelSpacing": 0
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "frser-sqlite-datasource",
+              "uid": "dH2THW04z"
+            },
+            "queryText": "select interest, count(*) from stats inner join interests using(id) where action=\"dislike\" group by interest;",
+            "queryType": "table",
+            "rawQueryText": "select interest, count(*) from stats inner join interests using(id) where action=\"dislike\" group by interest;",
+            "refId": "A",
+            "timeColumns": [
+              "time",
+              "ts"
+            ]
+          }
+        ],
+        "title": "Rejected Interests",
+        "transformations": [
+          {
+            "id": "sortBy",
+            "options": {
+              "fields": {},
+              "sort": [
+                {
+                  "desc": true,
+                  "field": "count(*)"
+                }
+              ]
+            }
+          }
+        ],
+        "type": "barchart"
+      },
+      {
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "dH2THW04z"
+        },
+        "description": "",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            },
+            "mappings": []
+          },
+          "overrides": [
+            {
+              "__systemRef": "hideSeriesFrom",
+              "matcher": {
+                "id": "byNames",
+                "options": {
+                  "mode": "exclude",
+                  "names": [
+                    "count(*)"
+                  ],
+                  "prefix": "All except:",
+                  "readOnly": true
+                }
+              },
+              "properties": [
+                {
+                  "id": "custom.hideFrom",
+                  "value": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": true
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "dislike"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "red",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "like"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "green",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 11,
+          "y": 0
+        },
+        "id": 2,
+        "options": {
+          "displayLabels": [
+            "name",
+            "value"
+          ],
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true,
+            "values": [
+              "value",
+              "percent"
+            ]
+          },
+          "pieType": "pie",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "frser-sqlite-datasource",
+              "uid": "dH2THW04z"
+            },
+            "queryText": "SELECT action, count(*) from stats group by action;\n",
+            "queryType": "table",
+            "rawQueryText": "SELECT action, count(*) from stats group by action;\n",
+            "refId": "A",
+            "timeColumns": [
+              "time",
+              "ts"
+            ]
+          }
+        ],
+        "title": "Liked/Disliked/Skipped",
+        "type": "piechart"
+      },
+      {
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "dH2THW04z"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "displayMode": "auto",
+              "inspect": false
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "reason"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 262
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 15,
+          "x": 0,
+          "y": 72
+        },
+        "id": 8,
+        "options": {
+          "footer": {
+            "fields": "",
+            "reducer": [
+              "sum"
+            ],
+            "show": false
+          },
+          "showHeader": true,
+          "sortBy": []
+        },
+        "pluginVersion": "9.3.6",
+        "targets": [
+          {
+            "datasource": {
+              "type": "frser-sqlite-datasource",
+              "uid": "dH2THW04z"
+            },
+            "queryText": "select * from stats where action = \"like\";",
+            "queryType": "table",
+            "rawQueryText": "select * from stats where action = \"like\";",
+            "refId": "A",
+            "timeColumns": [
+              "time",
+              "ts"
+            ]
+          }
+        ],
+        "title": "Liked",
+        "type": "table"
+      },
+      {
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "dH2THW04z"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineWidth": 1,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 78
+        },
+        "id": 6,
+        "options": {
+          "barRadius": 0,
+          "barWidth": 0.97,
+          "groupWidth": 0.7,
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "right",
+            "showLegend": true
+          },
+          "orientation": "auto",
+          "showValue": "never",
+          "stacking": "none",
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          },
+          "xTickLabelRotation": -45,
+          "xTickLabelSpacing": 0
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "frser-sqlite-datasource",
+              "uid": "dH2THW04z"
+            },
+            "queryText": "select music_artist, count(*) from stats inner join music_artists using(id) where action = \"like\" group by music_artist;",
+            "queryType": "table",
+            "rawQueryText": "select music_artist, count(*) from stats inner join music_artists using(id) where action = \"like\" group by music_artist;",
+            "refId": "A",
+            "timeColumns": [
+              "time",
+              "ts"
+            ]
+          }
+        ],
+        "title": "Music Artists (liked)",
+        "type": "barchart"
+      },
+      {
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "dH2THW04z"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineWidth": 1,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 114,
+          "w": 9,
+          "x": 0,
+          "y": 86
+        },
+        "id": 4,
+        "options": {
+          "barRadius": 0,
+          "barWidth": 0.97,
+          "groupWidth": 0.7,
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "orientation": "horizontal",
+          "showValue": "auto",
+          "stacking": "none",
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          },
+          "xTickLabelRotation": 0,
+          "xTickLabelSpacing": 0
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "frser-sqlite-datasource",
+              "uid": "dH2THW04z"
+            },
+            "queryText": "select music_artist, count(*) from music_artists group by music_artist;",
+            "queryType": "table",
+            "rawQueryText": "select music_artist, count(*) from music_artists group by music_artist;",
+            "refId": "A",
+            "timeColumns": [
+              "time",
+              "ts"
+            ]
+          }
+        ],
+        "title": "Music artists (All)",
+        "transformations": [
+          {
+            "id": "sortBy",
+            "options": {
+              "fields": {},
+              "sort": [
+                {
+                  "desc": true,
+                  "field": "count(*)"
+                }
+              ]
+            }
+          }
+        ],
+        "type": "barchart"
+      }
+    ],
+    "refresh": false,
+    "schemaVersion": 37,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": null,
+      "to": null
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Arun's Tinder Stats",
+    "uid": "slRFvZA4k",
+    "version": 2,
+    "weekStart": ""
+  }

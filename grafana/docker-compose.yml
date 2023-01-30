@@ -1,0 +1,11 @@
+version: "3"
+services:
+  grafana:
+    image: "grafana/grafana-oss:latest"
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=frser-sqlite-datasource
+    volumes:
+      - ../swiper/swiper/stats.db:/data/stats.db
+      - ./data:/var/lib/grafana grafana/grafana-oss
