@@ -1,3 +1,4 @@
+import sys
 import yaml
 import requests
 import json
@@ -229,7 +230,15 @@ class ApiClient:
         res = requests.get(self.baseurl+"/v2/recs/core?locale=en", headers=self.headers)
         # logging.info(f"got recs {res.status_code}")
         # logging.info(res.text)
-        return res.json()
+        if res.status_code == 200:
+            return res.json()
+
+        if res.status_code == 401:
+            logging.error("unauthorized: invalid token")
+            sys.exit(1)
+        
+        logging.error(f"failed to get recs {res.status_code} {res.text}")
+        return {}
 
     def recs_to_users(self, recs: dict) -> list[User]:
         return [User(r) for r in recs.get("data", {}).get("results", [])]
