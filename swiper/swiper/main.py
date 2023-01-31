@@ -18,7 +18,7 @@ class LikedReasons(TypedDict):
     music_artist: set[str]
 
 class RejectedReasons(TypedDict):
-    intent: str
+    intent: set[str]
     bio: set[str]
     job: set[str]
     interest: set[str]
@@ -131,9 +131,9 @@ class User:
 
         return {i for i in interests if i in blacklist}
 
-    def check_intent(self, blacklist: Iterable[str]) -> str | None:
+    def check_intent(self, blacklist: Iterable[str]) -> set[str]:
         intent = self.intent.lower()
-        return intent if intent in blacklist else None
+        return {intent} if intent in blacklist else set()
 
     def check_lifestyle(self, blacklist: Iterable[str]) -> set[str]:
         lifestyles = self.lifestyles
