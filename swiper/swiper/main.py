@@ -5,23 +5,42 @@ import sqlite3
 import logging
 import os
 import time
+from typing import TypedDict, Literal
+from collections.abc import Iterable
+import functools
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
+
+class LikedReasons(TypedDict):
+    interest: set[str]
+    music_artist: set[str]
+
+class RejectedReasons(TypedDict):
+    intent: str
+    bio: set[str]
+    job: set[str]
+    interest: set[str]
+    lifestyle: set[str]
 
 class User:
     def __init__(self, data: dict):
         self.data = data
 
+    @functools.cached_property
     def bio(self) -> str:
         return self.data["user"]["bio"]
+    
+    @functools.cached_property
     def name(self) -> str:
         return self.data["user"]["name"]
 
+    @functools.cached_property
     def interests(self) -> list[str]:
         x = self.data.get("experiment_info", {}).get("user_interests", {}).get("selected_interests", [])
         return [i["name"] for i in x]
     
+    @functools.cached_property
     def lifestyles(self) -> list[str]:
         x = self.data["user"].get("selected_descriptors", [])
 
@@ -38,7 +57,8 @@ class User:
         return [i for j in ret.values() for i in j]
 
 
-    def job_titles(self) -> str:
+    @functools.cached_property
+    def job_titles(self) -> list[str]:
         x = self.data["user"]["jobs"]
         res = []
         for i in x:
@@ -47,10 +67,12 @@ class User:
                     res.append(i["title"]["name"])
         return res
 
-    def intent(self) -> list[str]:
+    @functools.cached_property
+    def intent(self) -> str:
         x = self.data["user"].get("relationship_intent", {}).get("body_text", "")
         return x
 
+    @functools.cached_property
     def music_artists(self) -> list[str]:
         top_artists = self.data["spotify"]["spotify_top_artists"]
         top_artists = [i["name"] for i in top_artists]
@@ -61,62 +83,65 @@ class User:
 
         return artists
 
+    @functools.cached_property
     def id(self) -> str:
         return self.data["user"]["_id"]
 
+    @functools.cached_property
     def s_number(self) -> str:
         return self.data["s_number"]
 
+    @functools.cached_property
     def photos(self) -> list[str]:
         photos = self.data["user"]["photos"]
         return [p["url"] for p in photos]
 
     def __repr__(self) -> str:
         x = {
-            "name": self.name(),
-            "bio": self.bio(),
-            "interests": self.interests(),
-            "job_titles": self.job_titles(),
-            "lifestyles": self.lifestyles(),
-            "intent": self.intent(),
-            "music_artists": self.music_artists(),
+            "name": self.name,
+            "bio": self.bio,
+            "interests": self.interests,
+            "job_titles": self.job_titles,
+            "lifestyles": self.lifestyles,
+            "intent": self.intent,
+            "music_artists": self.music_artists,
         }
         return json.dumps(x, indent=2, ensure_ascii=False)
     
-    def check_job(self, blacklist: list[str]) -> str | None:
-        jobs = self.job_titles()
+    def check_job(self, blacklist: Iterable[str]) -> set[str]:
+        jobs = self.job_titles
         jobs = (j.lower() for j in jobs)
+
+        ret = set()
         for j in jobs:
             for b in blacklist:
                 if b in j:
-                    return b
-        return None
-                
+                    ret.add(b)
+        return ret
 
-    def check_bio(self, blacklist: list[str]) -> set[str]:
-        bio = self.bio().lower()
+    def check_bio(self, blacklist: Iterable[str]) -> set[str]:
+        bio = self.bio.lower()
 
         return {b for b in blacklist if b in bio }
 
-    def check_interests(self, blacklist: list[str]) -> set[str]:
-        interests = self.interests()
+    def check_interests(self, blacklist: Iterable[str]) -> set[str]:
+        interests = self.interests
         interests = (i.lower() for i in interests)
 
         return {i for i in interests if i in blacklist}
 
-    def check_intent(self, blacklist: list[str]) -> str | None:
-        intent = self.intent().lower()
+    def check_intent(self, blacklist: Iterable[str]) -> str | None:
+        intent = self.intent.lower()
         return intent if intent in blacklist else None
 
-
-    def check_lifestyle(self, blacklist: list[str]) -> set[str]:
-        lifestyles = self.lifestyles()
+    def check_lifestyle(self, blacklist: Iterable[str]) -> set[str]:
+        lifestyles = self.lifestyles
         lifestyles = (l.lower() for l in lifestyles)
 
         return {l for l in lifestyles if l in blacklist}
 
-    def check_music(self, whitelist: list[str]) -> set[str]:
-        artists = self.music_artists()
+    def check_music(self, whitelist: Iterable[str]) -> set[str]:
+        artists = self.music_artists
         artists = (a.lower() for a in artists)
 
         return {a for a in artists if a in whitelist}
@@ -128,30 +153,65 @@ class Stats:
         self.con = sqlite3.connect(os.path.join(cwd, "stats.db"))
         self.cur = self.con.cursor()
 
-        self.cur.execute("CREATE TABLE IF NOT EXISTS stats (id TEXT PRIMARY KEY, name TEXT, bio TEXT, intent TEXT, action TEXT, reason TEXT)")
+        self.cur.execute("""
+        CREATE TABLE IF NOT EXISTS stats (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            bio TEXT,
+            intent TEXT,
+            action TEXT,
+            seen_times INTEGER,
+            time INTEGER
+            )""")
         self.cur.execute("CREATE TABLE IF NOT EXISTS interests (id TEXT, interest TEXT)")
         self.cur.execute("CREATE TABLE IF NOT EXISTS lifestyles (id TEXT, lifestyle TEXT)")
         self.cur.execute("CREATE TABLE IF NOT EXISTS jobs (id TEXT, job TEXT)")
         self.cur.execute("CREATE TABLE IF NOT EXISTS music_artists (id TEXT, music_artist TEXT)")
         self.cur.execute("CREATE TABLE IF NOT EXISTS photos (id TEXT, photo TEXT)")
 
-    def add(self, user: User, action: str, reason: str):
-        self.cur.execute("INSERT OR IGNORE INTO stats VALUES (?, ?, ?, ?, ?, ?)", (user.id(), user.name(), user.bio(), user.intent(), action, reason))
-        for i in user.interests():
-            self.cur.execute("INSERT OR IGNORE INTO interests VALUES (?, ?)", (user.id(), i))
-        for l in user.lifestyles():
-            self.cur.execute("INSERT OR IGNORE INTO lifestyles VALUES (?, ?)", (user.id(), l))
-        for j in user.job_titles():
-            self.cur.execute("INSERT OR IGNORE INTO jobs VALUES (?, ?)", (user.id(), j))
-        for m in user.music_artists():
-            self.cur.execute("INSERT OR IGNORE INTO music_artists VALUES (?, ?)", (user.id(), m))
-        for p in user.photos():
-            self.cur.execute("INSERT OR IGNORE INTO photos VALUES (?, ?)", (user.id(), p))
+        self.cur.execute("CREATE TABLE IF NOT EXISTS rejected (id TEXT, category TEXT, value TEXT)")
+        self.cur.execute("CREATE TABLE IF NOT EXISTS approved (id TEXT, category TEXT, value TEXT)")
+
+    def add(self, user: User, action: Literal["like", "reject", "skip"], reasons: LikedReasons | RejectedReasons | None):
+        self.cur.execute("""
+        INSERT INTO stats VALUES (:id, :name, :bio, :intent, :action, 1, strftime('%s', 'now'))
+        ON CONFLICT(id) DO UPDATE SET
+        name = :name,
+        bio = :bio,
+        intent = :intent,
+        action = :action,
+        seen_times = seen_times + 1,
+        time = strftime('%s', 'now')
+        """, {
+            "id": user.id,
+            "name": user.name,
+            "bio": user.bio,
+            "intent": user.intent,
+            "action": action,
+        })
+        
+        self.cur.executemany("INSERT OR IGNORE INTO interests VALUES (?, ?)", ((user.id, i) for i in user.interests))
+        self.cur.executemany("INSERT OR IGNORE INTO lifestyles VALUES (?, ?)", ((user.id, l) for l in user.lifestyles))
+        self.cur.executemany("INSERT OR IGNORE INTO jobs VALUES (?, ?)", ((user.id, j) for j in user.job_titles))
+        self.cur.executemany("INSERT OR IGNORE INTO music_artists VALUES (?, ?)", ((user.id, m) for m in user.music_artists))
+        self.cur.executemany("INSERT OR IGNORE INTO photos VALUES (?, ?)", ((user.id, p) for p in user.photos))
+
+        if action == "like":
+            for k, v in reasons.items():
+                if v is None:
+                    break
+                self.cur.executemany("INSERT OR IGNORE INTO approved VALUES (?, ?, ?)", ((user.id, k, i) for i in v))
+
+        elif action == "reject":
+            for k, v in reasons.items():
+                if v is None:
+                    break
+                self.cur.executemany("INSERT OR IGNORE INTO rejected VALUES (?, ?, ?)", ((user.id, k, i) for i in v))
+
+        else:
+            assert action == "skipped"
 
         self.con.commit()
-
-
-
 
 
 class ApiClient:
@@ -167,8 +227,8 @@ class ApiClient:
 
     def get_recs(self) -> dict:
         res = requests.get(self.baseurl+"/v2/recs/core?locale=en", headers=self.headers)
-        logging.info(f"got recs {res.status_code}")
-        logging.info(res.text)
+        # logging.info(f"got recs {res.status_code}")
+        # logging.info(res.text)
         return res.json()
 
     def recs_to_users(self, recs: dict) -> list[User]:
@@ -183,21 +243,19 @@ class ApiClient:
         res = requests.get(self.baseurl+ f"/like/{id}", headers=self.headers, params={"locale": "en"})
 
         if res.status_code == 200:
-            # logging.info(f"liked {id}")
             pass
         else:
             logging.warning(f"failed to like {id}")
         return res.text
 
-    def dislike(self, id: str, s_number: str):
+    def reject(self, id: str, s_number: str):
 
         res = requests.get(self.baseurl+ f"/pass/{id}", headers=self.headers, params={"locale": "en", "s_number": s_number})
         
         if res.status_code == 200:
-            # logging.info(f"liked {id} with s_number {s_number}")
             pass
         else:
-            logging.warning(f"failed to like {id} with s_number {s_number}: {res.text}")
+            logging.warning(f"failed to reject {id} with s_number {s_number}: {res.text}")
         return res.text
 
 class Swiper:
@@ -226,77 +284,57 @@ class Swiper:
         for k, v in self.whitelist.items():
             self.whitelist[k] = [i.lower() for i in v]
 
-    def swipe(self):
+    def swipe(self, testing: bool = False):
         while True:
             time.sleep(5)
             users = self.client.get_users()
 
             for user in users:
                 time.sleep(5)
-                reason = self.check_whitelist(user)
-                if reason:
-                    self.client.like(user.id(), user.s_number())
-                    self.stats.add(user, "like", reason)
-                    logging.info(f"liked {user.id()} {user.name()} because: {reason}")
+                reasons = self.check_whitelist(user)
+                if reasons:
+                    self.client.like(user.id, user.s_number)
+                    self.stats.add(user, "like", reasons)
+                    logging.info(f"liked {user.id} {user.name} because: {reasons}")
                     continue
 
-                reason = self.check_blacklist(user)
-                if reason:
-                    self.client.dislike(user.id(), user.s_number())
-                    self.stats.add(user, "dislike", reason)
-                    logging.info(f"rejected {user.id()} {user.name()} because: {reason}")
+                reasons = self.check_blacklist(user)
+                if reasons:
+                    self.client.reject(user.id, user.s_number)
+                    self.stats.add(user, "reject", reasons)
+                    logging.info(f"rejected {user.id} {user.name} because: {reasons}")
                     continue
 
-                logging.info(f"skipped {user.id()} {user.name()}")
-                self.stats.add(user, "skipped", "")
+                logging.info(f"skipped {user.id} {user.name}")
+                self.stats.add(user, "skipped", None)
+            if testing:
+                break
             
 
-            
+    def check_whitelist(self, user: User) -> LikedReasons | None:
+        result: LikedReasons = dict()
 
-    def check_whitelist(self, user: User) -> str | None:
-        result = ""
+        result["interests"] = user.check_interests(self.whitelist["interests"])           
+        result["music"] = user.check_music(self.whitelist["music_artists"])
 
-        matching_interests = user.check_interests(self.whitelist["interests"])
-        if matching_interests:
-            result +=  f"{matching_interests} in interests "
-            
+        if any(result.values()):
+            return result
+        
+        return None
 
-        matching_music = user.check_music(self.whitelist["music_artists"])
-        if user.check_music(self.whitelist["music_artists"]):
-            result += f"{matching_music} in music "
-
-        return result if result else None
-
-    def check_blacklist(self, user: User) -> str | None:
+    def check_blacklist(self, user: User) -> RejectedReasons | None:
+        result: RejectedReasons = dict()
     
-            result = ""
+        result["lifestyle"] = user.check_lifestyle(self.blacklist["lifestyles"])
+        result["interests"] = user.check_interests(self.blacklist["interests"])
+        result["intent"] = user.check_intent(self.blacklist["intent"])
+        result["job"] = user.check_job(self.blacklist["jobs"])  
+        result["bio"] = user.check_bio(self.blacklist["bio"])
     
-            lifestyles = user.check_lifestyle(self.blacklist["lifestyles"])
-            if lifestyles:
-                result += f"{lifestyles} in lifestyle "
-
-            interests = user.check_interests(self.blacklist["interests"])
-            if interests:
-                result += f"{interests} in interests "
-
-            intent = user.check_intent(self.blacklist["intent"])
-            if intent:
-                result += f"{intent} in intent "
-
-            job = user.check_job(self.blacklist["jobs"])  
-            if job:
-                result += f"{job} in job "
-
-            bio = user.check_bio(self.blacklist["bio"])
-            if bio:
-                result += f"{bio} in bio "
-    
-            return result if result else None
-    
-
-   
-
-       
+        if any(result.values()):
+            return result
+        
+        return None
 
 
 if __name__ == "__main__":
