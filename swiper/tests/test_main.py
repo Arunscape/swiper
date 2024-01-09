@@ -7,6 +7,7 @@ import time
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
+
 @pytest.fixture(autouse=True)
 def mocked_recs(mocker):
     j = None
@@ -39,6 +40,7 @@ def test_filters():
         # print(u.id, u.s_number)
         # print(u.photos)
 
+
 def test_like(caplog):
     caplog.set_level(logging.INFO)
     a = ApiClient("")
@@ -47,7 +49,7 @@ def test_like(caplog):
     b = b[0]
     a.like(b.id, b.s_number)
     a.reject(b.id, b.s_number)
-    
+
 
 def test_swipe():
     s = Swiper("token")
