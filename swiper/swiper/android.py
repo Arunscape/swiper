@@ -2,12 +2,24 @@ from appium import webdriver
 from appium.options.android import UiAutomator2Options
 from appium.webdriver.common.appiumby import AppiumBy
 
+from selenium.webdriver.remote.webelement import WebElement
+import logging
+"""
+{
+  "platformName": "Android",
+  "automationName": "uiautomator2"
+}
+"""
 
+# go back is driver.back()
 class Swiper:
+
     def __init__(self):
         capabilities = dict(
             platformName="Android",
             automationName="UiAutomator2",
+            espressoBuildConfig="{\"additionalAndroidTestDependencies\": [\"androidx.activity:activity-compose:1.3.1\", \"androidx.lifecycle:lifecycle-extensions:2.2.0\",\"androidx.fragment:fragment:1.3.6\"]}"
+
         )
         appium_server_url = "http://127.0.0.1:4723"
         self.driver = webdriver.Remote(
@@ -15,6 +27,12 @@ class Swiper:
             options=UiAutomator2Options().load_capabilities(capabilities),
         )
         self.start_app()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.driver.quit()
 
     def start_app(self):
         self.driver.activate_app("com.tinder")
@@ -30,50 +48,55 @@ class Swiper:
         elif self.driver.current_activity != ".activities.MainActivity":
             self.restart()
 
-        try:
-            self.click_btn(
-                '(//android.widget.ImageView[@resource-id="com.tinder:id/navigation_bar_item_icon_view"])[1]'
-            )
 
-        except:
+        if not len(self.driver.find_elements(by=AppiumBy.ID, value="com.tinder:id/gamepad_like")) > 0:
             self.restart()
-
-    def go_back(self):
-        self.driver.press_keycode(4, undefined, undefined)
 
     def swipe(self):
         while True:
             self.swipe_once()
 
-    def click_btn(self, xpath: str):
-        btn = self.driver.find_element(by=AppiumBy.XPATH, value=xpath)
-        btn.click()
-
     def expand_profile(self):
-        self.click_btn(
-            '(//android.widget.ImageView[@content-desc="Expand Profile"])[1]'
-        )
+        self.driver.find_element(by=AppiumBy.XPATH, value='(//android.widget.ImageView[@content-desc="Expand Profile"])[1]').click()
 
     def like(self):
-        self.click_btn(
-            '//android.widget.ImageView[@resource-id="com.tinder:id/gamepad_like"]'
-        )
+        self.driver.find_element(by=AppiumBy.ID, value="com.tinder:id/gamepad_like").click()
 
     def reject(self):
-        self.click_btn(
-            '//android.widget.ImageView[@resource-id="com.tinder:id/gamepad_pass"]'
-        )
+        self.driver.find_element(by=AppiumBy.ID, value="com.tinder:id/gamepad_pass").click()
+
+    def extract_name(self) -> str:
+        return self.driver.find_element(by=AppiumBy.ID, value="com.tinder:id/recs_card_user_headline_name").text
+
+    def extract_age(self) -> int:
+        age = self.driver.find_element(by=AppiumBy.ID, value="com.tinder:id/recs_card_user_headline_age").text
+        return int(age)
+
+
+    def extract_essentials(self) -> WebElement:
+        self.driver.update_settings({"driver": "compose"})
+        x = self.driver.find_element(by=AppiumBy.XPATH, value='*')
+        logging.warning(x.text)
+        return None
+
 
     def swipe_once(self):
         self.ensure_home()
-        self.reject()
+        logging.info("am home")
+
+        #name = self.extract_name()
+        #logging.warning(f"Name: {name}")
+
+        #age = self.extract_age()
+        #logging.warning(f"Age: {age}")
+
+        self.expand_profile()
+        self.extract_essentials()
+        #self.reject()
 
 
-# todo:
-# with Swiper() as s:
-#
-# quit driver when scope ends
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
 
-s = Swiper()
-s.swipe_once()
-s.driver.quit()
+    with Swiper() as s:
+        s.swipe_once()
